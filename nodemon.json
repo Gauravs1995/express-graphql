@@ -1,0 +1,7 @@
+{
+  "env": {
+    "MONGO_USER": "gaurav",
+    "MONGO_PASSWORD": "2yItZ8VyqEuHKlP0",
+    "MONGO_DB": "mern-event-booking"
+  }
+}
