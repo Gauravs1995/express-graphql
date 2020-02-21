@@ -16,6 +16,12 @@ const userSchema = new Schema({
       type: Schema.Types.ObjectId,
       ref: 'Event'
     }
+  ],
+  eventsBooked: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Event'
+    }
   ]
 });
 

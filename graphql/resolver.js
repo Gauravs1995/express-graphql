@@ -1,8 +1,9 @@
+import jwt from 'jsonwebtoken';
 import Event from '../models/event.model';
 import bcrypt from 'bcryptjs';
 import User from '../models/user.model';
 
-const findEventsCreated = eventIds => {
+const findEvents = eventIds => {
   return Event.find({ _id: { $in: eventIds } })
     .then(events => {
       return events.map(event => {
@@ -25,7 +26,8 @@ const findCreator = userid => {
       return {
         ...creator._doc,
         _id: creator.id,
-        eventsCreated: findEventsCreated.bind(this, creator._doc.eventsCreated)
+        password: null,
+        eventsCreated: findEvents.bind(this, creator._doc.eventsCreated)
       };
     })
     .catch(err => {
@@ -33,16 +35,45 @@ const findCreator = userid => {
     });
 };
 
+const findAttendees = userIds => {
+  return User.find({ _id: { $in: userIds } })
+    .then(users => {
+      return users.map(user => {
+        return {
+          ...user._doc,
+          _id: user.id,
+          email: user.email,
+          password: null,
+          eventsBooked: findEvents.bind(this, user.eventsBooked)
+        };
+      });
+    })
+    .catch(err => {
+      throw err;
+    });
+};
+
 export default {
-  users: () => {
-    return User.find()
-      .then(users => {
-        return users.map(user => {
-          return {
-            ...user._doc,
-            eventsCreated: findEventsCreated.bind(this, user._doc.eventsCreated)
-          };
-        });
+  login: ({ email, password }) => {
+    let userExists;
+    return User.findOne({ email: email })
+      .then(user => {
+        if (!user) {
+          throw new Error('User does not exist');
+        }
+        userExists = user;
+        return bcrypt.compare(password, user.password);
+      })
+      .then(match => {
+        if (!match) {
+          throw new Error('Incorrect password');
+        }
+        const token = jwt.sign(
+          { userId: userExists.id, email: userExists.email },
+          'somesuperlongkey',
+          { expiresIn: '1h' }
+        );
+        return { userId: userExists.id, token: token, tokenExpiration: 1 };
       })
       .catch(err => {
         throw err;
@@ -56,7 +87,8 @@ export default {
             ...event._doc,
             _id: event.id,
             date: new Date(event._doc.date).toLocaleDateString(),
-            creator: findCreator.bind(this, event.creator)
+            creator: findCreator.bind(this, event.creator),
+            attendees: findAttendees.bind(this, event.attendees)
           };
         });
       })
@@ -64,13 +96,16 @@ export default {
         throw err;
       });
   },
-  createEvent: args => {
+  createEvent: (args, req) => {
+    if (!req.isAuth) {
+      throw new Error('User Unauthenticated');
+    }
     const event = new Event({
       title: args.eventInput.title,
       description: args.eventInput.description,
       price: +args.eventInput.price,
-      date: new Date(args.eventInput.date).toISOString(),
-      creator: '5e463be52bdb035718551496'
+      date: new Date(args.eventInput.date).toDateString(),
+      creator: req.userId
     });
     let createdEvent;
     return event
@@ -81,7 +116,7 @@ export default {
           _id: result.id,
           creator: findCreator.bind(this, result.creator)
         };
-        return User.findById('5e463be52bdb035718551496');
+        return User.findById(req.userId);
       })
       .then(user => {
         if (!user) {
@@ -118,5 +153,25 @@ export default {
       .catch(err => {
         throw err;
       });
+  },
+  rsvpEvent: async (args, req) => {
+    if (!req.isAuth) {
+      throw new Error('User Unauthenticated');
+    }
+    const event = await Event.findById(args.eventId);
+    if (!event) {
+      throw new Error('Event not found');
+    }
+    const user = await User.findById(args.userId);
+    event.attendees.push(user);
+    user.eventsBooked.push(event);
+    await user.save();
+    const bookedEvent = await event.save();
+    return {
+      ...bookedEvent._doc,
+      _id: bookedEvent.id,
+      creator: findCreator.bind(this, bookedEvent.creator),
+      attendees: findAttendees.bind(this, bookedEvent.attendees)
+    };
   }
 };

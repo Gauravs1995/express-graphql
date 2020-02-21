@@ -21,7 +21,13 @@ const eventSchema = new Schema({
   creator: {
     type: Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  attendees: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  ]
 });
 
 export default mongoose.model('Event', eventSchema);

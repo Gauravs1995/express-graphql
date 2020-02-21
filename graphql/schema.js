@@ -8,6 +8,7 @@ export default buildSchema(`
       price: Float!
       date: String!
       creator: User!
+      attendees: [User!]
     }
     
     type User {
@@ -15,6 +16,7 @@ export default buildSchema(`
       email: String!
       password: String
       eventsCreated: [Event!]
+      eventsBooked: [Event!]
     }
 
     input EventInput {
@@ -28,15 +30,21 @@ export default buildSchema(`
       email: String!
       password: String!
     }
-
+    type AuthData {
+      userId: ID!
+      token: String!
+      tokenExpiration: Int!
+    }
     type rootQuery {
       events: [Event!]!
-      users: [User!]!
+      login(email: String!, password: String!): AuthData!
+      
     }
 
     type rootMutation {
       createEvent(eventInput: EventInput): Event
       createUser(userInput: UserInput): User
+      rsvpEvent(userId: ID!, eventId: ID!): Event
     }
 
     schema {
