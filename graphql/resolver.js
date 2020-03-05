@@ -142,6 +142,8 @@ export default {
       })
       .then(hashedPassword => {
         const user = new User({
+          firstname: args.userInput.firstname,
+          lastname: args.userInput.lastname,
           email: args.userInput.email,
           password: hashedPassword
         });
@@ -162,7 +164,13 @@ export default {
     if (!event) {
       throw new Error('Event not found');
     }
-    const user = await User.findById(args.userId);
+    let userExists = event.attendees.find(id => {
+      return id.toString() === req.userId;
+    });
+    if (userExists) {
+      throw new Error('User already booked');
+    }
+    const user = await User.findById(req.userId);
     event.attendees.push(user);
     user.eventsBooked.push(event);
     await user.save();
@@ -173,5 +181,34 @@ export default {
       creator: findCreator.bind(this, bookedEvent.creator),
       attendees: findAttendees.bind(this, bookedEvent.attendees)
     };
+  },
+  cancelBooking: async (args, req) => {
+    if (!req.isAuth) {
+      throw new Error('User Unauthenticated');
+    }
+    try {
+      const event = await Event.findById(args.eventId);
+      const userIndex = event.attendees.findIndex(
+        element => element.toString() === req.userId
+      );
+      if (userIndex === -1) {
+        throw new Error('User is not registered in attendees list');
+      }
+      event.attendees.splice(userIndex, 1);
+
+      const user = await User.findById(req.userId);
+      const eventIndex = user.eventsBooked.findIndex(
+        element => element.toString() === args.eventId
+      );
+      if (eventIndex === -1) {
+        throw new Error('Event not found in user bookings');
+      }
+      user.eventsBooked.splice(eventIndex, 1);
+      await user.save();
+      await event.save();
+      return true;
+    } catch (err) {
+      throw err;
+    }
   }
 };

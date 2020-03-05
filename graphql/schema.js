@@ -12,6 +12,8 @@ export default buildSchema(`
     }
     
     type User {
+      firstname: String!
+      lastname: String!
       _id: ID!
       email: String!
       password: String
@@ -27,6 +29,8 @@ export default buildSchema(`
     }
 
     input UserInput {
+      firstname: String!
+      lastname: String!
       email: String!
       password: String!
     }
@@ -44,7 +48,8 @@ export default buildSchema(`
     type rootMutation {
       createEvent(eventInput: EventInput): Event
       createUser(userInput: UserInput): User
-      rsvpEvent(userId: ID!, eventId: ID!): Event
+      rsvpEvent(eventId: ID!): Event
+      cancelBooking(eventId: ID!): Boolean 
     }
 
     schema {
